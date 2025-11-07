@@ -3,285 +3,513 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Manga Tracker Cloud</title>
+<title>Manga Library</title>
 
-<!-- Dependencies -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Style -->
 <style>
-body {
-  background: #0f172a;
-  color: #f1f5f9;
-  font-family: "Inter", system-ui, sans-serif;
-  padding: 1.5rem;
+:root {
+  --bg:#0b1020;
+  --fg:#e9edf5;
+  --muted:#a9b2c2;
+  --accent:#7aa2ff;
+  --glass:rgba(255,255,255,.07);
+  --glass-strong:rgba(255,255,255,.10);
+  --radius:16px;
+  --blur:14px;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+
+  --sidebar-w:320px;
+  --scrim:rgba(0,0,0,.45);
 }
 
-h2 {
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  margin-bottom: 1rem;
+body.light {
+  --bg:#e9eef7;
+  --fg:#0b1222;
+  --muted:#44506a;
+  --accent:#2b6fff;
+  --glass:rgba(255,255,255,.65);
+  --glass-strong:rgba(255,255,255,.75);
+  --shadow:0 10px 26px rgba(0,0,0,.18);
 }
 
-.card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
-}
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
-}
-
-a {
-  color: #38bdf8;
-  font-weight: 500;
-  text-decoration: none;
-}
-a:hover {
-  color: #7dd3fc;
-  text-decoration: underline;
+html,body { height:100%; }
+body{
+  margin:0;
+  background:
+    radial-gradient(1200px 800px at -10% 0%, #121a33 0%, transparent 60%),
+    radial-gradient(900px 700px at 110% -10%, #0d1530 0%, transparent 60%),
+    var(--bg);
+  color:var(--fg);
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  letter-spacing:.2px;
+  transition:background .25s ease, color .25s ease;
 }
 
-input, select, button {
-  border-radius: 0.5rem!important;
-}
+/* Layout */
+.container-narrow{max-width:1280px; margin:0 auto; padding:18px;}
+.app-layout{position:relative}
 
-.btn {
-  font-size: 0.85rem;
-  font-weight: 500;
-  border: none;
-  transition: opacity 0.2s ease;
+/* Glass */
+.glass{
+  background:var(--glass);
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(var(--blur)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(135%);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
 }
-.btn:hover {
-  opacity: 0.85;
-}
+body.light .glass{border-color:rgba(0,0,0,.08)}
 
-.status-tag {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #0f172a;
+/* Sidebar */
+.sidebar{
+  position:fixed;
+  top:0; left:0; bottom:0;
+  width:var(--sidebar-w);
+  padding:16px;
+  display:flex; flex-direction:column; gap:16px;
+  transform:translateX(-100%);
+  transition:transform .25s ease;
+  z-index:1001;
 }
-.status-ongoing {
-  background: #38bdf8;
-}
-.status-completed {
-  background: #22c55e;
-}
+.sidebar.open{ transform:translateX(0); }
 
-.chapter-info {
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
-  color: #cbd5e1;
+.scrim{
+  position:fixed; inset:0;
+  background:var(--scrim);
+  opacity:0; visibility:hidden;
+  transition:opacity .2s ease, visibility .2s ease;
+  z-index:1000;
 }
+.scrim.show{ opacity:1; visibility:visible; }
 
-.card-title {
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 0.3rem;
-  color: #f8fafc;
+/* Sidebar content */
+.logo-row{
+  display:flex; align-items:center; gap:10px;
+  padding:6px 8px;
 }
+.logo-mark{
+  width:28px; height:28px;
+  border-radius:8px;
+  background:linear-gradient(135deg, var(--accent), transparent);
+  border:1px solid rgba(255,255,255,.25);
+}
+.logo-text{ font-weight:700; letter-spacing:.3px; }
 
-#filterRow {
-  align-items: center;
-  gap: 0.5rem;
+.panel{ padding:12px; }
+.panel .label{font-size:12px; color:var(--muted); margin-bottom:6px}
+
+/* Theme switch (label only, no emoji) */
+.switch-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.switch {
+  position: relative; width: 48px; height: 26px;
 }
+.switch input { opacity:0; width:0; height:0; }
+.slider {
+  position:absolute; inset:0; cursor:pointer;
+  background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;
+  transition:background .2s ease, border-color .2s ease;
+}
+.slider:before{
+  content:"";
+  position:absolute; height:20px; width:20px; left:3px; top:50%;
+  transform:translateY(-50%);
+  background:#fff; border-radius:50%;
+  transition:transform .2s ease;
+}
+.switch input:checked + .slider{ background:rgba(122,162,255,.35); border-color:rgba(122,162,255,.65); }
+.switch input:checked + .slider:before{ transform:translate(21px,-50%); }
+
+/* Header (top bar) */
+.topbar{ position:sticky; top:8px; z-index:5; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; }
+.brand-btn{
+  display:flex; align-items:center; gap:10px;
+  background:transparent; border:none; color:inherit; cursor:pointer; padding:6px 8px; border-radius:10px;
+}
+.brand-btn:hover{ background:rgba(255,255,255,.1); }
+.brand-text{ font-weight:700; letter-spacing:.4px; }
+
+/* Controls */
+.controls{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
+.controls .control{
+  background:var(--glass-strong);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:12px; padding:6px 8px; display:flex; align-items:center; gap:8px;
+}
+.control input, .control select{
+  appearance:none; background:transparent; border:none; color:inherit; outline:none;
+}
+.control input::placeholder{ color:var(--muted) }
+
+/* Grid */
+.grid{ display:grid; gap:16px; margin-top:16px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:768px){.grid{grid-template-columns:repeat(4,1fr)}}
+@media (min-width:1024px){.grid{grid-template-columns:repeat(5,1fr)}}
+@media (min-width:1280px){.grid{grid-template-columns:repeat(6,1fr)}}
+
+/* Cards (uniform sizing) */
+.cardx{
+  display:flex; flex-direction:column; justify-content:space-between;
+  height:460px; overflow:hidden; border-radius:16px;
+  background:var(--glass); border:1px solid rgba(255,255,255,.08); box-shadow:var(--shadow);
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.cardx:hover{ transform:translateY(-4px); }
+.thumb{
+  position:relative; width:100%; flex:0 0 auto; height:65%; overflow:hidden; border-bottom:1px solid rgba(255,255,255,.1);
+}
+.thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+.thumb.placeholder{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 10px, transparent 10px 20px);
+}
+.thumb.placeholder::after{
+  content:"🖼️"; position:absolute; inset:0; display:grid; place-items:center; font-size:28px; opacity:.6;
+}
+.card-bodyx{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:space-between; padding:10px 12px 12px; }
+.title{
+  font-size:14px; font-weight:600; line-height:1.25; margin:0 0 4px 0;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.info-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.meta{ font-size:12px; color:var(--muted); }
+.status-pill{ padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.07); font-size:11.5px; }
+
+/* Actions */
+.actions{ display:flex; gap:6px; margin-top:auto; }
+.btnx{
+  flex:1; height:34px; display:flex; align-items:center; justify-content:center;
+  border-radius:10px; border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05); color:var(--fg); font-size:.85rem; cursor:pointer;
+  transition:background .15s ease,border-color .15s ease;
+}
+.btnx:hover{ background:rgba(255,255,255,.09); }
+.btn-dangerx{ border-color:rgba(255,60,60,.45); color:#ff5b5b; }
+
+/* Auth panel spacing */
+.auth-card{ padding:18px; }
+
+/* Misc */
+.text-mutedx{ color:var(--muted) }
+.hidden{ display:none }
 </style>
 </head>
-
 <body>
-<div class="container">
-  <h2>🌸 Manga Tracker Cloud</h2>
-  <div id="auth" class="mb-4"></div>
-
-  <div id="app" style="display:none">
-    <div class="d-flex flex-wrap mb-3 gap-2" id="filterRow">
-      <input id="searchInput" class="form-control flex-grow-1" placeholder="🔍 Search manga title...">
-      <select id="statusFilter" class="form-select w-auto">
-        <option value="All">All</option>
-        <option value="Ongoing">Ongoing</option>
-        <option value="Completed">Completed</option>
-      </select>
-      <input id="newTitle" class="form-control w-auto" placeholder="Add new manga title">
-      <button id="addBtn" class="btn btn-success">Add</button>
+  <!-- Sidebar + scrim -->
+  <aside id="sidebar" class="sidebar glass" aria-hidden="true">
+    <div class="logo-row">
+      <div class="logo-mark" aria-hidden="true"></div>
+      <div class="logo-text">Manga Library</div>
     </div>
-    <div id="list" class="row g-3"></div>
-  </div>
-</div>
 
-<!-- Script -->
+    <div class="glass panel">
+      <div class="label">Theme</div>
+      <div class="switch-row">
+        <span class="text-mutedx">Toggle</span>
+        <label class="switch">
+          <input type="checkbox" id="themeSwitch">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="glass panel" id="userPanel">
+      <!-- user email + logout injected after login -->
+      <div class="label">Account</div>
+      <div id="userEmail" class="mb-2 text-truncate"></div>
+      <button id="logoutBtn" class="btnx" style="width:100%">Logout</button>
+    </div>
+
+    <div class="text-mutedx mt-auto" style="font-size:12px">&copy; <span id="year"></span> Manga Library</div>
+  </aside>
+  <div id="scrim" class="scrim" tabindex="-1" aria-hidden="true"></div>
+
+  <div class="container-narrow app-layout">
+    <!-- Top bar: logo is the opener -->
+    <header class="topbar glass">
+      <button id="openSidebar" class="brand-btn" aria-label="Open sidebar">
+        <div class="logo-mark" aria-hidden="true"></div>
+        <span class="brand-text">Manga Library</span>
+      </button>
+      <!-- right side intentionally empty per your request -->
+      <div></div>
+    </header>
+
+    <!-- Auth (login/signup) – moved OUT of homepage; only shows if no session -->
+    <div id="auth"></div>
+
+    <!-- App -->
+    <section id="app" class="hidden">
+      <div class="glass p-3 mt-3">
+        <div class="controls">
+          <div class="control flex-grow-1">
+            <span>🔍</span>
+            <input id="searchInput" type="search" placeholder="Search title..." class="w-100">
+          </div>
+          <div class="control">
+            <label class="me-1 text-mutedx">Status</label>
+            <select id="statusFilter">
+              <option value="">All</option>
+              <option value="done">Done</option>
+              <option value="notdone">Not Done</option>
+            </select>
+          </div>
+          <div class="control">
+            <input id="newTitle" placeholder="Add new title">
+            <button id="addBtn" class="btnx" style="padding:6px 10px; min-width:70px">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <div id="resultCount" class="text-mutedx">Loading…</div>
+        <button id="refreshBtn" class="btnx" style="flex:0 0 auto; max-width:120px">Refresh</button>
+      </div>
+
+      <div id="grid" class="grid"></div>
+    </section>
+  </div>
+
 <script>
+/* ===== Supabase ===== */
 const SUPABASE_URL = "https://qdbfokgiwrococaxifkn.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkYmZva2dpd3JvY29jYXhpZmtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNDU0MTcsImV4cCI6MjA3NzkyMTQxN30.rQz9t-NnU_Ahn-8avkUlhry4BFYyw6PVfgZNo-KFK1A";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let allManga = []; // cache for local filtering
+/* ===== Shortcuts ===== */
+const $ = (s,p=document)=>p.querySelector(s);
+const $$ = (s,p=document)=>Array.from(p.querySelectorAll(s));
 
-// === AUTH HANDLING ===
-async function checkSession(){
+/* ===== Elements ===== */
+const el = {
+  sidebar: $("#sidebar"),
+  scrim: $("#scrim"),
+  openSidebar: $("#openSidebar"),
+  themeSwitch: $("#themeSwitch"),
+  userPanel: $("#userPanel"),
+  userEmail: $("#userEmail"),
+  logoutBtn: $("#logoutBtn"),
+  auth: $("#auth"),
+  app: $("#app"),
+  grid: $("#grid"),
+  search: $("#searchInput"),
+  status: $("#statusFilter"),
+  addTitle: $("#newTitle"),
+  addBtn: $("#addBtn"),
+  refresh: $("#refreshBtn"),
+  resultCount: $("#resultCount"),
+};
+$("#year").textContent = new Date().getFullYear();
+
+let cache = [];
+let userId = null;
+
+/* ===== Theme (persist) ===== */
+(function initTheme(){
+  const saved = localStorage.getItem("theme") || "dark";
+  setTheme(saved);
+  el.themeSwitch.checked = (saved === "light");
+  el.themeSwitch.addEventListener("change", ()=>{
+    const mode = el.themeSwitch.checked ? "light" : "dark";
+    setTheme(mode);
+    localStorage.setItem("theme", mode);
+  });
+  function setTheme(mode){
+    if(mode==="light"){ document.body.classList.add("light"); }
+    else { document.body.classList.remove("light"); }
+  }
+})();
+
+/* ===== Sidebar open/close ===== */
+function openSidebar(){ el.sidebar.classList.add("open"); el.scrim.classList.add("show"); }
+function closeSidebar(){ el.sidebar.classList.remove("open"); el.scrim.classList.remove("show"); }
+
+el.openSidebar.addEventListener("click", openSidebar);
+el.scrim.addEventListener("click", closeSidebar);
+window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeSidebar(); });
+
+/* ===== Auth ===== */
+initAuth();
+async function initAuth(){
   const { data:{ session } } = await supabase.auth.getSession();
-  if(session) showApp(session.user);
-  else showLogin();
+  renderAuth(session?.user || null);
+  supabase.auth.onAuthStateChange((_e, session)=> renderAuth(session?.user || null));
 }
-
-supabase.auth.onAuthStateChange((_event, session) => {
-  if(session) showApp(session.user);
-  else showLogin();
-});
-
-function showLogin(){
-  const div=document.getElementById("auth");
-  div.innerHTML=`
-    <div class="card p-3 mb-3">
-      <h5>Login or Sign Up</h5>
-      <input id="email" class="form-control mb-2" placeholder="Email">
-      <input id="password" type="password" class="form-control mb-2" placeholder="Password">
-      <div class="d-flex gap-2">
-        <button class="btn btn-primary flex-fill" id="loginBtn">Login</button>
-        <button class="btn btn-outline-light flex-fill" id="signupBtn">Sign Up</button>
-      </div>
-    </div>`;
-  document.getElementById("loginBtn").onclick=login;
-  document.getElementById("signupBtn").onclick=signup;
+function renderAuth(user){
+  if(user){
+    userId = user.id;
+    // Fill sidebar account block
+    el.userEmail.textContent = user.email || "";
+    el.logoutBtn.onclick = async()=>{ await supabase.auth.signOut(); location.reload(); };
+    // Hide homepage auth, show app
+    el.auth.innerHTML = "";
+    el.app.classList.remove("hidden");
+    wireControls();
+    loadData();
+  } else {
+    el.app.classList.add("hidden");
+    el.auth.innerHTML = `
+      <div class="glass auth-card mt-3">
+        <h5 class="mb-3">Login or Sign Up</h5>
+        <input id="email" class="form-control mb-2" placeholder="Email">
+        <input id="password" type="password" class="form-control mb-3" placeholder="Password">
+        <div class="d-flex gap-2">
+          <button id="login" class="btnx">Login</button>
+          <button id="signup" class="btnx">Sign Up</button>
+        </div>
+      </div>`;
+    $("#login").onclick = login;
+    $("#signup").onclick = signup;
+  }
 }
-
 async function login(){
-  const email=document.getElementById("email").value.trim();
-  const password=document.getElementById("password").value.trim();
-  const { data, error }=await supabase.auth.signInWithPassword({ email, password });
+  const email = $("#email").value.trim();
+  const password = $("#password").value.trim();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
   if(error) alert(error.message);
-  else showApp(data.user);
 }
-
 async function signup(){
-  const email=document.getElementById("email").value.trim();
-  const password=document.getElementById("password").value.trim();
-  const { error }=await supabase.auth.signUp({ email, password });
+  const email = $("#email").value.trim();
+  const password = $("#password").value.trim();
+  const { error } = await supabase.auth.signUp({ email, password });
   if(error) alert(error.message);
-  else alert("Check your email for a verification link, then log in.");
+  else alert("Check your email to verify, then log in.");
 }
 
-// === APP DISPLAY ===
-async function showApp(user){
-  document.getElementById("auth").innerHTML=
-    `Logged in as ${user.email}
-     <button class="btn btn-sm btn-outline-danger ms-2" id="logoutBtn">Logout</button>`;
-  document.getElementById("logoutBtn").onclick=async()=>{await supabase.auth.signOut();location.reload();};
-  document.getElementById("app").style.display="block";
-  document.getElementById("addBtn").onclick=addManga;
-  document.getElementById("searchInput").oninput=applyFilters;
-  document.getElementById("statusFilter").onchange=applyFilters;
-  loadManga();
+/* ===== Controls ===== */
+function wireControls(){
+  el.addBtn.onclick = addManga;
+  el.refresh.onclick = loadData;
+  el.search.addEventListener("input", debounce(applyFilters, 200));
+  el.status.addEventListener("change", applyFilters);
 }
+function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
 
-// === CRUD OPERATIONS ===
-async function loadManga(){
-  const list=document.getElementById("list");
-  list.innerHTML="<p>Loading...</p>";
-
-  const { data:{ user } } = await supabase.auth.getUser();
+/* ===== Data load / render ===== */
+async function loadData(){
+  el.resultCount.textContent = "Loading…";
+  el.grid.innerHTML = "";
   const { data, error } = await supabase
     .from("manga")
     .select("*")
-    .eq("user_id", user.id)
-    .order("title", { ascending:true });
+    .eq("user_id", userId)
+    .order("title", { ascending: true });
 
-  if(error){console.error(error); list.innerHTML="<p class='text-danger'>Failed to load manga.</p>"; return;}
-  allManga = data;
+  if(error){ console.error(error); el.resultCount.textContent = "Failed to load."; return; }
+  cache = data || [];
   applyFilters();
 }
 
 function applyFilters(){
-  const term = document.getElementById("searchInput").value.trim().toLowerCase();
-  const status = document.getElementById("statusFilter").value;
-  let filtered = allManga.filter(it => it.title.toLowerCase().includes(term));
-  if(status !== "All") filtered = filtered.filter(it => (it.status ?? "Ongoing") === status);
-  render(filtered);
+  const q = el.search.value.trim().toLowerCase();
+  const statusSel = el.status.value; // "", "done", "notdone"
+  let rows = cache.filter(r => (r.title||"").toLowerCase().includes(q));
+  if(statusSel==="done") rows = rows.filter(r => String(r.status||"").toLowerCase().includes("(done"));
+  if(statusSel==="notdone") rows = rows.filter(r => !String(r.status||"").toLowerCase().includes("(done"));
+  renderGrid(rows);
+  el.resultCount.textContent = `${rows.length} result${rows.length===1?"":"s"}`;
 }
 
-// === UI RENDERING ===
-function render(items){
-  const c=document.getElementById("list");
-  c.innerHTML="";
-  if(!items.length){
-    c.innerHTML="<p class='text-muted'>No matching manga found.</p>";
-    return;
+function renderGrid(rows){
+  el.grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for(const r of rows){ frag.appendChild(createCard(r)); }
+  el.grid.appendChild(frag);
+}
+
+/* ===== Card builder ===== */
+const io = new IntersectionObserver((entries)=>{
+  for(const e of entries){
+    if(e.isIntersecting){ const img=e.target; img.src=img.dataset.src; io.unobserve(img); }
   }
+},{rootMargin:"200px"});
 
-  items.forEach(it=>{
-    const col=document.createElement("div");
-    col.className="col-12 col-md-6 col-lg-4";
-    const card=document.createElement("div");
-    card.className="card p-3 h-100 d-flex flex-column justify-content-between";
+function createCard(row){
+  const card = document.createElement("article");
+  card.className = "cardx";
 
-    const status = (it.status ?? "Ongoing");
-    const tagClass = status === "Completed" ? "status-completed" : "status-ongoing";
+  // Cover (click to open url)
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  const link = document.createElement("a");
+  link.className = "cover-link";
+  link.target = "_blank"; link.rel = "noopener";
+  link.href = row.url || "javascript:void(0)";
+  const img = document.createElement("img");
+  const cover = (row.cover_url && row.cover_url !== "NOT_FOUND") ? row.cover_url : "";
+  if(cover){ img.loading="lazy"; img.alt=row.title||""; img.dataset.src=cover; io.observe(img); }
+  else { thumb.classList.add("placeholder"); }
+  link.appendChild(img); thumb.appendChild(link);
 
-    card.innerHTML=`
-      <div>
-        <h5 class="card-title">${it.title}</h5>
-        <div class="chapter-info">
-          Chapter ${it.chapter ?? 0}
-          <span class="status-tag ${tagClass}">${status}</span>
-        </div>
-        ${it.url ? `<div class="mt-1"><a href="${it.url}" target="_blank">📖 Read on site</a></div>` : ""}
-      </div>
+  // Body
+  const body = document.createElement("div");
+  body.className = "card-bodyx";
+  const title = document.createElement("h3");
+  title.className = "title"; title.textContent = row.title || "Untitled";
 
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <button class="btn btn-sm btn-success flex-fill">+1</button>
-        <button class="btn btn-sm btn-secondary flex-fill">Set</button>
-        <button class="btn btn-sm btn-outline-light flex-fill">Done</button>
-        <button class="btn btn-sm btn-danger flex-fill">🗑</button>
-      </div>
-    `;
+  const infoRow = document.createElement("div");
+  infoRow.className = "info-row";
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.innerHTML = `<span>Chapter ${row.chapter ?? 0}</span>`;
+  const statusPill = document.createElement("span");
+  statusPill.className = "status-pill";
+  statusPill.textContent = (row.status ?? "").toString() || "—";
+  infoRow.append(meta, statusPill);
 
-    const [plus,set,done,del]=card.querySelectorAll("button");
-    plus.onclick=()=>updateChapter(it.id,(it.chapter||0)+1);
-    set.onclick=()=>{const val=prompt("Set chapter number:",it.chapter);if(val!==null)updateChapter(it.id,Number(val));};
-    done.onclick=()=>updateStatus(it.id,"Completed");
-    del.onclick=()=>deleteManga(it.id);
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const btnPlus = b("＋1"), btnSet=b("Set"), btnDone=b("Done"), btnDel=b("🗑");
+  btnDel.classList.add("btn-dangerx");
 
-    col.append(card);
-    c.append(col);
-  });
+  btnPlus.onclick = ()=> updateChapter(row.id, (row.chapter||0)+1);
+  btnSet.onclick  = ()=>{
+    const val = prompt("Set chapter number:", row.chapter ?? 0);
+    if(val!==null && !Number.isNaN(Number(val))) updateChapter(row.id, Number(val));
+  };
+  btnDone.onclick = ()=> markDone(row.id);
+  btnDel.onclick  = ()=> del(row.id);
+
+  actions.append(btnPlus, btnSet, btnDone, btnDel);
+
+  body.append(title, infoRow, actions);
+  card.append(thumb, body);
+  return card;
+
+  function b(txt){ const x=document.createElement("button"); x.className="btnx"; x.textContent=txt; return x; }
 }
 
-// === CRUD FUNCTIONS ===
+/* ===== Mutations ===== */
 async function addManga(){
-  const title=document.getElementById("newTitle").value.trim();
+  const title = el.addTitle.value.trim();
   if(!title) return;
-  const { data:{ user } } = await supabase.auth.getUser();
-  await supabase.from("manga").insert({ user_id:user.id, title, status:"Ongoing", chapter:0 });
-  document.getElementById("newTitle").value="";
-  loadManga();
+  await supabase.from("manga").insert({ user_id:userId, title, chapter:0, status:`Chapter 0`, url:null, cover_url:null });
+  el.addTitle.value = "";
+  loadData();
 }
-
 async function updateChapter(id,val){
-  await supabase.from("manga").update({chapter:val}).eq("id",id);
-  loadManga();
+  await supabase.from("manga").update({ chapter: val }).eq("id", id);
+  loadData();
 }
-
-async function updateStatus(id,val){
-  await supabase.from("manga").update({status:val}).eq("id",id);
-  loadManga();
+async function markDone(id){
+  const { data, error } = await supabase.from("manga").select("chapter").eq("id", id).single();
+  const ch = error ? null : (data?.chapter ?? null);
+  const statusVal = (ch===null) ? "Done" : `Chapter ${ch}(Done)`;
+  await supabase.from("manga").update({ status: statusVal }).eq("id", id);
+  loadData();
 }
-
-async function deleteManga(id){
+async function del(id){
   if(confirm("Delete this entry?")){
-    await supabase.from("manga").delete().eq("id",id);
-    loadManga();
+    await supabase.from("manga").delete().eq("id", id);
+    loadData();
   }
 }
-
-// === INITIALIZE ===
-checkSession();
 </script>
 </body>
 </html>
