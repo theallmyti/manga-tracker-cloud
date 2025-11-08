@@ -1,0 +1,384 @@
+// =====================================
+// Supabase Client Setup
+// =====================================
+const SUPABASE_URL = "https://qdbfokgiwrococaxifkn.supabase.co";
+const SUPABASE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkYmZva2dpd3JvY29jYXhpZmtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNDU0MTcsImV4cCI6MjA3NzkyMTQxN30.rQz9t-NnU_Ahn-8avkUlhry4BFYyw6PVfgZNo-KFK1A";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = (s, p = document) => p.querySelector(s);
+
+// Cached Elements
+const el = {
+  sidebar: $("#sidebar"),
+  scrim: $("#scrim"),
+  openSidebar: $("#openSidebar"),
+  themeSwitch: $("#themeSwitch"),
+  userEmail: $("#userEmail"),
+  logoutBtn: $("#logoutBtn"),
+  openAdd: $("#openAdd"),
+  modalScrim: $("#modalScrim"),
+  addModal: $("#addModal"),
+  saveAdd: $("#saveAdd"),
+  cancelAdd: $("#cancelAdd"),
+  m_title: $("#m_title"),
+  m_chapter: $("#m_chapter"),
+  m_status: $("#m_status"),
+  m_url: $("#m_url"),
+  m_cover: $("#m_cover"),
+  delScrim: $("#delScrim"),
+  delModal: $("#delModal"),
+  delCancel: $("#delCancel"),
+  delConfirm: $("#delConfirm"),
+  toastWrap: $("#toastWrap"),
+  auth: $("#auth"),
+  app: $("#app"),
+  grid: $("#grid"),
+  search: $("#searchInput"),
+  status: $("#statusFilter"),
+  refresh: $("#refreshBtn"),
+  resultCount: $("#resultCount"),
+};
+
+// Footer Year
+$("#year").textContent = new Date().getFullYear();
+
+// =====================================
+// Sidebar
+// =====================================
+function openSidebar() {
+  el.sidebar.classList.add("open");
+  el.scrim.classList.add("show");
+}
+function closeSidebar() {
+  el.sidebar.classList.remove("open");
+  el.scrim.classList.remove("show");
+}
+el.openSidebar.onclick = openSidebar;
+el.scrim.onclick = closeSidebar;
+
+// =====================================
+// Theme Persistence
+// =====================================
+(function () {
+  const t = localStorage.getItem("theme") || "dark";
+  setTheme(t);
+  el.themeSwitch.checked = t === "light";
+  el.themeSwitch.onchange = () => {
+    const m = el.themeSwitch.checked ? "light" : "dark";
+    setTheme(m);
+    localStorage.setItem("theme", m);
+  };
+  function setTheme(m) {
+    if (m === "light") document.body.classList.add("light");
+    else document.body.classList.remove("light");
+  }
+})();
+
+// =====================================
+// Auth System
+// =====================================
+let cache = [],
+  userId = null,
+  pendingDelete = null;
+
+initAuth();
+
+async function initAuth() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  renderAuth(session?.user || null);
+  supabase.auth.onAuthStateChange((_e, s) => renderAuth(s?.user || null));
+}
+
+function renderAuth(user) {
+  if (user) {
+    userId = user.id;
+    el.userEmail.textContent = user.email;
+    el.logoutBtn.onclick = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    el.auth.innerHTML = "";
+    el.app.classList.remove("hidden");
+    el.openAdd.classList.remove("hidden");
+    el.openAdd.onclick = openAddModal;
+    wire();
+    loadData();
+  } else {
+    el.app.classList.add("hidden");
+    el.openAdd.classList.add("hidden");
+    el.auth.innerHTML = `
+      <div class="glass p-3 mt-3">
+        <h5>Login or Sign Up</h5>
+        <input id="email" class="form-control mb-2" placeholder="Email">
+        <input id="password" type="password" class="form-control mb-2" placeholder="Password">
+        <div class="d-flex gap-2">
+          <button id="login" class="btnx flex-fill">Login</button>
+          <button id="signup" class="btnx flex-fill">Sign Up</button>
+        </div>
+      </div>`;
+
+    $("#login").onclick = login;
+    $("#signup").onclick = signup;
+
+    // Press Enter to trigger login
+    const emailInput = $("#email");
+    const passwordInput = $("#password");
+    [emailInput, passwordInput].forEach((input) => {
+      input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          $("#login").click();
+        }
+      });
+    });
+  }
+}
+
+// =====================================
+// Login & Signup
+// =====================================
+async function login() {
+  const e = $("#email").value.trim(),
+    p = $("#password").value.trim();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: e,
+    password: p,
+  });
+  if (error) {
+    toast(error.message, "danger");
+    return;
+  }
+}
+
+async function signup() {
+  const e = $("#email").value.trim(),
+    p = $("#password").value.trim();
+  const { error } = await supabase.auth.signUp({
+    email: e,
+    password: p,
+  });
+  if (error) {
+    toast(error.message, "danger");
+  } else {
+    toast("Check your email to verify, then log in.", "success");
+  }
+}
+
+// =====================================
+// CRUD
+// =====================================
+function wire() {
+  el.refresh.onclick = loadData;
+  el.search.oninput = () => apply();
+  el.status.onchange = apply;
+}
+
+async function loadData() {
+  el.resultCount.textContent = "Loading...";
+  const { data, error } = await supabase
+    .from("manga")
+    .select("*")
+    .eq("user_id", userId)
+    .order("title", { ascending: true });
+  if (error) return console.error(error);
+  cache = data || [];
+  apply();
+}
+
+function apply() {
+  const q = el.search.value.toLowerCase();
+  const s = el.status.value;
+  let r = cache.filter((x) => x.title.toLowerCase().includes(q));
+  if (s) r = r.filter((x) => (x.status || "") === s);
+  render(r);
+  el.resultCount.textContent = `${r.length} result${r.length !== 1 ? "s" : ""}`;
+}
+
+function render(rows) {
+  el.grid.innerHTML = "";
+  for (const row of rows) {
+    const c = document.createElement("div");
+    c.className = "cardx";
+
+    const t = document.createElement("div");
+    t.className = "thumb";
+
+    const a = document.createElement("a");
+    a.href = row.url || "#";
+    a.target = "_blank";
+
+    const i = document.createElement("img");
+    if (row.cover_url) {
+      i.dataset.src = row.cover_url;
+      i.loading = "lazy";
+      i.alt = row.title;
+      observer.observe(i);
+    } else t.classList.add("placeholder");
+
+    a.append(i);
+    t.append(a);
+
+    const b = document.createElement("div");
+    b.className = "card-bodyx";
+
+    const ti = document.createElement("h3");
+    ti.className = "title";
+    ti.textContent = row.title;
+
+    const inf = document.createElement("div");
+    inf.className = "info-row";
+    inf.innerHTML = `<div class='meta'>Ch ${row.chapter || 0}</div><span class='status-pill'>${row.status || "Ongoing"}</span>`;
+
+    const act = document.createElement("div");
+    act.className = "actions";
+
+    const plus = btn("+1"),
+      set = btn("Set"),
+      done = btn("Done"),
+      del = btnSvg();
+
+    plus.onclick = () => updChap(row.id, (row.chapter || 0) + 1);
+    set.onclick = () => {
+      const v = prompt("Set chapter:", row.chapter);
+      if (v !== null) updChap(row.id, Number(v));
+    };
+    done.onclick = () => markDone(row.id);
+    del.onclick = () => openDel(row.id);
+
+    act.append(plus, set, done, del);
+    b.append(ti, inf, act);
+    c.append(t, b);
+    el.grid.append(c);
+  }
+}
+
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((x) => {
+      if (x.isIntersecting) {
+        x.target.src = x.target.dataset.src;
+        observer.unobserve(x.target);
+      }
+    });
+  },
+  { rootMargin: "200px" }
+);
+
+function btn(t) {
+  const b = document.createElement("button");
+  b.className = "btnx";
+  b.textContent = t;
+  return b;
+}
+
+function btnSvg() {
+  const b = document.createElement("button");
+  b.className = "btnx btn-dangerx";
+  b.innerHTML = `<svg xmlns='http://www.w3.org/2000/svg' fill='currentColor' viewBox='0 0 24 24'><path d='M9 3h6a1 1 0 0 1 1 1v1h4a1 1 0 1 1 0 2h-1v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7H4a1 1 0 1 1 0-2h4V4a1 1 0 0 1 1-1zm1 4v12h4V7h-4z'/></svg>`;
+  return b;
+}
+
+async function updChap(id, val) {
+  await supabase.from("manga").update({ chapter: val }).eq("id", id);
+  loadData();
+}
+
+async function markDone(id) {
+  await supabase.from("manga").update({ status: "Completed" }).eq("id", id);
+  loadData();
+}
+
+// =====================================
+// Add Modal
+// =====================================
+function openAddModal() {
+  el.modalScrim.classList.add("show");
+  el.addModal.classList.add("show");
+}
+function closeAddModal() {
+  el.modalScrim.classList.remove("show");
+  el.addModal.classList.remove("show");
+}
+el.cancelAdd.onclick = closeAddModal;
+el.modalScrim.onclick = closeAddModal;
+
+el.saveAdd.onclick = async () => {
+  const title = el.m_title.value.trim();
+  if (!title) return toast("Title is required", "danger");
+
+  const chapter = Number(el.m_chapter.value) || 0;
+  const status = el.m_status.value;
+  const url = el.m_url.value.trim() || null;
+  const cover = el.m_cover.value.trim() || null;
+
+  let source = null;
+  if (url) {
+    try {
+      source = new URL(url).hostname;
+    } catch {
+      source = null;
+    }
+  }
+
+  await supabase.from("manga").insert({
+    user_id: userId,
+    title,
+    chapter,
+    status,
+    url,
+    cover_url: cover,
+    source,
+  });
+
+  closeAddModal();
+  loadData();
+  toast("Series added successfully", "success");
+};
+
+// =====================================
+// Delete Modal
+// =====================================
+function openDel(id) {
+  pendingDelete = id;
+  el.delScrim.classList.add("show");
+  el.delModal.classList.add("show");
+}
+function closeDel() {
+  el.delScrim.classList.remove("show");
+  el.delModal.classList.remove("show");
+}
+el.delCancel.onclick = closeDel;
+el.delScrim.onclick = closeDel;
+
+el.delConfirm.onclick = async () => {
+  if (!pendingDelete) return;
+  await supabase.from("manga").delete().eq("id", pendingDelete);
+  if (navigator.vibrate) navigator.vibrate(40);
+  closeDel();
+  loadData();
+  toast("Deleted successfully", "danger");
+};
+
+// =====================================
+// Toast Notifications (Custom Alerts)
+// =====================================
+function toast(msg, type) {
+  const t = document.createElement("div");
+  t.className = `glass-toast ${
+    type === "danger" ? "toast-danger" : "toast-success"
+  }`;
+  t.textContent = msg;
+  el.toastWrap.append(t);
+  requestAnimationFrame(() => t.classList.add("show"));
+
+  // Stay longer for error messages
+  const duration = type === "danger" ? 4000 : 2000;
+  setTimeout(() => {
+    t.classList.remove("show");
+    setTimeout(() => t.remove(), 300);
+  }, duration);
+}
