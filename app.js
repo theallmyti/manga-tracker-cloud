@@ -38,6 +38,13 @@ const el = {
   status: $("#statusFilter"),
   refresh: $("#refreshBtn"),
   resultCount: $("#resultCount"),
+
+  // Inline status popup elements
+  statusPopup: $("#statusPopup"),
+  statusDropdown: $("#statusDropdown"),
+  statusCustomInput: $("#statusCustomInput"),
+  statusCancel: $("#statusCancel"),
+  statusSave: $("#statusSave"),
 };
 
 // Footer Year
@@ -80,7 +87,8 @@ el.scrim.onclick = closeSidebar;
 // =====================================
 let cache = [],
   userId = null,
-  pendingDelete = null;
+  pendingDelete = null,
+  activeStatusId = null;
 
 initAuth();
 
@@ -124,7 +132,6 @@ function renderAuth(user) {
     $("#login").onclick = login;
     $("#signup").onclick = signup;
 
-    // Press Enter to trigger login
     const emailInput = $("#email");
     const passwordInput = $("#password");
     [emailInput, passwordInput].forEach((input) => {
@@ -150,17 +157,13 @@ async function login() {
   });
   if (error) {
     toast(error.message, "danger");
-    return;
   }
 }
 
 async function signup() {
   const e = $("#email").value.trim(),
     p = $("#password").value.trim();
-  const { error } = await supabase.auth.signUp({
-    email: e,
-    password: p,
-  });
+  const { error } = await supabase.auth.signUp({ email: e, password: p });
   if (error) {
     toast(error.message, "danger");
   } else {
@@ -175,6 +178,17 @@ function wire() {
   el.refresh.onclick = loadData;
   el.search.oninput = () => apply();
   el.status.onchange = apply;
+
+  document.addEventListener("mousedown", (e) => {
+    if (el.statusPopup.classList.contains("hidden")) return;
+    if (el.statusPopup.contains(e.target)) return;
+    if (e.target.classList.contains("status-pill")) return;
+    closeStatusPopup();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeStatusPopup();
+  });
 }
 
 async function loadData() {
@@ -231,7 +245,16 @@ function render(rows) {
 
     const inf = document.createElement("div");
     inf.className = "info-row";
-    inf.innerHTML = `<div class='meta'>Ch ${row.chapter || 0}</div><span class='status-pill'>${row.status || "Ongoing"}</span>`;
+    inf.innerHTML = `
+      <div class='meta'>Ch ${row.chapter || 0}</div>
+      <span class='status-pill' style='cursor:pointer;'>${row.status || "Ongoing"}</span>
+    `;
+
+    const statusEl = inf.querySelector(".status-pill");
+    statusEl.onclick = (e) => {
+      e.stopPropagation();
+      openStatusPopup(statusEl, row.id, row.status || "Ongoing");
+    };
 
     const act = document.createElement("div");
     act.className = "actions";
@@ -364,7 +387,70 @@ el.delConfirm.onclick = async () => {
 };
 
 // =====================================
-// Toast Notifications (Custom Alerts)
+// Inline Status Popup
+// =====================================
+function openStatusPopup(targetEl, id, currentStatus) {
+  activeStatusId = id;
+
+  el.statusDropdown.value = ["Ongoing", "Completed", "On Hold"].includes(currentStatus)
+    ? currentStatus
+    : "Custom";
+  el.statusCustomInput.value =
+    el.statusDropdown.value === "Custom" ? currentStatus || "" : "";
+  el.statusCustomInput.style.display =
+    el.statusDropdown.value === "Custom" ? "block" : "none";
+
+  const rect = targetEl.getBoundingClientRect();
+  const sx = window.scrollX || document.documentElement.scrollLeft;
+  const sy = window.scrollY || document.documentElement.scrollTop;
+
+  let top = rect.bottom + sy + 6;
+  let left = rect.left + sx;
+  const approxH = 160;
+  if (top + approxH > sy + window.innerHeight) top = rect.top + sy - approxH - 6;
+
+  const maxLeft = sx + window.innerWidth - 240;
+  left = Math.min(left, maxLeft);
+
+  el.statusPopup.style.top = `${top}px`;
+  el.statusPopup.style.left = `${left}px`;
+  el.statusPopup.classList.remove("hidden");
+
+  if (el.statusDropdown.value === "Custom") el.statusCustomInput.focus();
+  else el.statusDropdown.focus();
+}
+
+function closeStatusPopup() {
+  el.statusPopup.classList.add("hidden");
+  activeStatusId = null;
+}
+
+el.statusDropdown.onchange = () => {
+  const isCustom = el.statusDropdown.value === "Custom";
+  el.statusCustomInput.style.display = isCustom ? "block" : "none";
+  if (isCustom) el.statusCustomInput.focus();
+};
+
+el.statusSave.onclick = async (e) => {
+  e.stopPropagation();
+  if (!activeStatusId) return;
+  let newStatus = el.statusDropdown.value;
+  if (newStatus === "Custom") {
+    newStatus = el.statusCustomInput.value.trim() || "Custom";
+  }
+  await supabase.from("manga").update({ status: newStatus }).eq("id", activeStatusId);
+  closeStatusPopup();
+  loadData();
+  toast("Status updated successfully", "success");
+};
+
+el.statusCancel.onclick = (e) => {
+  e.stopPropagation();
+  closeStatusPopup();
+};
+
+// =====================================
+// Toast Notifications
 // =====================================
 function toast(msg, type) {
   const t = document.createElement("div");
@@ -374,8 +460,6 @@ function toast(msg, type) {
   t.textContent = msg;
   el.toastWrap.append(t);
   requestAnimationFrame(() => t.classList.add("show"));
-
-  // Stay longer for error messages
   const duration = type === "danger" ? 4000 : 2000;
   setTimeout(() => {
     t.classList.remove("show");
