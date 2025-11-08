@@ -442,3 +442,9 @@ label.small {
   font-weight: 500;
   opacity: 0.8;
 }
+
+#setInput {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
