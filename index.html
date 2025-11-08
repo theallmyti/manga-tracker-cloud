@@ -98,6 +98,22 @@
   </section>
 </div>
 
+<!-- Inline Status Editor -->
+<div id="statusPopup" class="glass status-popup hidden">
+  <select id="statusDropdown" class="form-select mb-2">
+    <option value="Ongoing">Ongoing</option>
+    <option value="Completed">Completed</option>
+    <option value="On Hold">On Hold</option>
+    <option value="Custom">Custom...</option>
+  </select>
+  <input id="statusCustomInput" class="form-control mb-2" placeholder="Enter custom status" style="display:none;">
+  <div class="d-flex justify-content-end gap-2">
+    <button id="statusCancel" class="btnx btn-sm">Cancel</button>
+    <button id="statusSave" class="btnx btn-sm">Save</button>
+  </div>
+</div>
+
+
 <script src="app.js"></script>
 </body>
 </html>
