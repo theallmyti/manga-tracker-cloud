@@ -33,7 +33,7 @@ html, body {
 body {
   margin: 0;
   position: relative;
-  background: var(--bg) url('assets/bg-landscape.jpg') no-repeat center center fixed;
+  background: var(--bg) url('bg-landscape.jpg') no-repeat center center fixed;
   background-size: cover;
   color: var(--fg);
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -409,3 +409,4 @@ body.light::before {
 
 .text-mutedx { color: var(--muted); }
 .hidden { display: none; }
+
