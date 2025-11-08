@@ -487,4 +487,150 @@ const io = new IntersectionObserver((entries)=>{
   for(const e of entries){
     if(e.isIntersecting){ const img=e.target; img.src=img.dataset.src; io.unobserve(img); }
   }
-},{rootMargin:"2
+},{rootMargin:"200px"});
+
+function createCard(row){
+  const card = document.createElement("article");
+  card.className = "cardx";
+
+  // Cover
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  const link = document.createElement("a");
+  link.className = "cover-link";
+  link.target = "_blank"; link.rel = "noopener";
+  link.href = row.url || "javascript:void(0)";
+  const img = document.createElement("img");
+  const cover = (row.cover_url && row.cover_url !== "NOT_FOUND") ? row.cover_url : "";
+  if(cover){ img.loading="lazy"; img.alt=row.title||""; img.dataset.src=cover; io.observe(img); }
+  else { thumb.classList.add("placeholder"); }
+  link.appendChild(img); thumb.appendChild(link);
+
+  // Body
+  const body = document.createElement("div");
+  body.className = "card-bodyx";
+  const title = document.createElement("h3");
+  title.className = "title"; title.textContent = row.title || "Untitled";
+
+  const infoRow = document.createElement("div");
+  infoRow.className = "info-row";
+  const meta = document.createElement("div");
+  meta.className = "meta"; meta.innerHTML = `<span>Chapter ${row.chapter ?? 0}</span>`;
+  const statusPill = document.createElement("span");
+  statusPill.className = "status-pill";
+  statusPill.textContent = (row.status ?? "").toString() || "—";
+  infoRow.append(meta, statusPill);
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  const btnPlus = b("＋1"), btnSet=b("Set"), btnDone=b("Done"), btnDel=bIcon();
+  btnPlus.onclick = ()=> updateChapter(row.id, (row.chapter||0)+1);
+  btnSet.onclick  = ()=>{ const v=prompt("Set chapter number:", row.chapter??0);
+                          if(v!==null && !Number.isNaN(Number(v))) updateChapter(row.id, Number(v)); };
+  btnDone.onclick = ()=> markDone(row.id);
+  btnDel.onclick  = ()=> openDelModal(row.id);
+  actions.append(btnPlus, btnSet, btnDone, btnDel);
+
+  body.append(title, infoRow, actions);
+  card.append(thumb, body);
+  return card;
+
+  function b(txt){ const x=document.createElement("button"); x.className="btnx"; x.textContent=txt; return x; }
+  function bIcon(){
+    const x=document.createElement("button"); x.className="btnx btn-dangerx";
+    x.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 3h6a1 1 0 0 1 1 1v1h4a1 1 0 1 1 0 2h-1v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7H4a1 1 0 1 1 0-2h4V4a1 1 0 0 1 1-1zm1 4v12h4V7h-4z"/>
+      </svg>`;
+    return x;
+  }
+}
+
+/* ===== Add Modal ===== */
+function openAddModal(){
+  el.m_title.value=""; el.m_chapter.value=""; el.m_status.value="Ongoing";
+  el.m_url.value=""; el.m_cover.value="";
+  el.modalScrim.classList.add("show"); el.addModal.classList.add("show");
+}
+function closeAddModal(){ el.modalScrim.classList.remove("show"); el.addModal.classList.remove("show"); }
+el.modalScrim.addEventListener("click", closeAddModal);
+el.cancelAdd.addEventListener("click", closeAddModal);
+el.saveAdd.addEventListener("click", onSaveAdd);
+
+async function onSaveAdd(){
+  const title = el.m_title.value.trim();
+  if(!title){ alert("Title is required."); return; }
+  const chapter = Number(el.m_chapter.value || 0);
+  const status = el.m_status.value;
+  const url = el.m_url.value.trim() || null;
+  const cover_url = el.m_cover.value.trim() || null;
+
+  let source = null;
+  if(url){ try { source = new URL(url).hostname; } catch { source = null; } }
+
+  el.saveAdd.disabled = true;
+  try{
+    const { error } = await supabase.from("manga").insert({ user_id:userId, title, chapter, status, url, cover_url, source });
+    if(error) throw error;
+    closeAddModal();
+    loadData();
+    toast("Series added successfully.", "success");
+  } catch(err){
+    console.error(err); alert(err.message || "Failed to add series.");
+  } finally { el.saveAdd.disabled = false; }
+}
+
+/* ===== Delete Modal (custom confirm) ===== */
+function openDelModal(id){
+  pendingDeleteId = id;
+  el.delScrim.classList.add("show"); el.delModal.classList.add("show");
+}
+function closeDelModal(){ el.delScrim.classList.remove("show"); el.delModal.classList.remove("show"); pendingDeleteId=null; }
+el.delScrim.addEventListener("click", closeDelModal);
+el.delCancel.addEventListener("click", closeDelModal);
+el.delConfirm.addEventListener("click", async ()=>{
+  if(!pendingDeleteId) return;
+  try{
+    await supabase.from("manga").delete().eq("id", pendingDeleteId);
+    if(navigator.vibrate) navigator.vibrate(40);  // gentle haptic
+    closeDelModal();
+    loadData();
+    toast("Deleted successfully.", "danger");
+  }catch(err){
+    console.error(err); alert(err.message || "Failed to delete.");
+  }
+});
+
+/* ===== Mutations ===== */
+async function updateChapter(id,val){
+  await supabase.from("manga").update({ chapter: val }).eq("id", id);
+  loadData();
+}
+async function markDone(id){
+  const { data, error } = await supabase.from("manga").select("chapter").eq("id", id).single();
+  const ch = error ? null : (data?.chapter ?? null);
+  const statusVal = (ch===null) ? "Completed" : `Chapter ${ch}(Done)`;
+  await supabase.from("manga").update({ status: statusVal }).eq("id", id);
+  loadData();
+}
+
+/* ===== Toasts ===== */
+function toast(message, type="success"){
+  const t = document.createElement("div");
+  t.className = `glass-toast ${type==="danger"?"toast-danger":"toast-success"}`;
+  t.textContent = message;
+  el.toastWrap.appendChild(t);
+  // Animate in
+  requestAnimationFrame(()=> t.classList.add("show"));
+  // Auto dismiss
+  setTimeout(()=>{
+    t.classList.remove("show");
+    setTimeout(()=> t.remove(), 300);
+  }, 2000);
+}
+
+/* ===== Utilities ===== */
+function debounce(fn, ms=250){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+</script>
+</body>
+</html>
