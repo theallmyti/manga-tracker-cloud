@@ -72,6 +72,56 @@
   </div>
 </div>
 
+<!-- Edit Details Modal -->
+<div id="editScrim" class="modal-scrim"></div>
+<div id="editModal" class="modalx">
+  <div class="glass p-3">
+    <h5 class="mb-3">Edit Manga Details</h5>
+
+    <div class="mb-2">
+      <label class="text-mutedx small">Title</label>
+      <input id="edit_title" class="form-control" placeholder="Title">
+    </div>
+
+    <div class="mb-2">
+      <label class="text-mutedx small">Chapter</label>
+      <input id="edit_chapter" class="form-control" placeholder="Chapter" type="number">
+    </div>
+
+    <div class="mb-2">
+      <label class="text-mutedx small">Status</label>
+      <select id="edit_status" class="form-select">
+        <option>Ongoing</option>
+        <option>Completed</option>
+        <option>On Hold</option>
+        <option>Custom</option>
+      </select>
+    </div>
+
+    <div class="mb-2" id="edit_custom_container" style="display:none;">
+      <label class="text-mutedx small">Custom Status</label>
+      <input id="edit_custom_status" class="form-control" placeholder="Enter custom status">
+    </div>
+
+    <div class="mb-2">
+      <label class="text-mutedx small">URL</label>
+      <input id="edit_url" class="form-control" placeholder="Manga URL">
+    </div>
+
+    <div class="mb-3">
+      <label class="text-mutedx small">Cover URL</label>
+      <input id="edit_cover" class="form-control" placeholder="Cover image URL">
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button id="editCancel" class="btnx">Cancel</button>
+      <button id="editSave" class="btnx">Save</button>
+    </div>
+  </div>
+</div>
+
+
+
 <div id="toastWrap" class="glass-toast-wrap"></div>
 
 <div class="container-narrow app-layout">
