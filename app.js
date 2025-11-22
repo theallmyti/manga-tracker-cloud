@@ -571,13 +571,13 @@ function toast(msg, type) {
 // =====================================
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/manga-tracker-cloud/service-worker.js")
+    navigator.serviceWorker.register("/manga-tracker-cloud/service-worker.js")
       .then((reg) => {
-        console.log("✅ Service Worker registered with scope:", reg.scope);
+        console.log("✅ Service Worker Registered:", reg.scope);
       })
       .catch((err) => {
-        console.error("❌ Service Worker registration failed:", err);
+        console.error("❌ Service Worker failed:", err);
       });
   });
 }
+
