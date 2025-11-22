@@ -9,11 +9,12 @@
   "theme_color": "#7aa2ff",
   "icons": [
     {
-      "src": "/manga-tracker-cloud/logo.jpj",
+      "src": "/manga-tracker-cloud/logo.jpg",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ]
 }
+
 
