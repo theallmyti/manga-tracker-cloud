@@ -1,4 +1,4 @@
-const CACHE_NAME = "manga-library-v2";
+const CACHE_NAME = "manga-library-v3";
 const BASE = "/manga-tracker-cloud/";
 
 const ASSETS = [
