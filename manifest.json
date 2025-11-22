@@ -3,7 +3,7 @@
   "short_name": "Manga",
   "start_url": "/manga-tracker-cloud/index.html",
   "scope": "/manga-tracker-cloud/",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b1020",
   "theme_color": "#7aa2ff",
@@ -20,5 +20,6 @@
     }
   ]
 }
+
 
 
