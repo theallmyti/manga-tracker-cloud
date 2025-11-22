@@ -565,3 +565,19 @@ function toast(msg, type) {
     setTimeout(() => t.remove(), 300);
   }, duration);
 }
+
+// =====================================
+// PWA Service Worker Registration
+// =====================================
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/manga-tracker-cloud/service-worker.js")
+      .then((reg) => {
+        console.log("✅ Service Worker registered with scope:", reg.scope);
+      })
+      .catch((err) => {
+        console.error("❌ Service Worker registration failed:", err);
+      });
+  });
+}
