@@ -8,9 +8,7 @@ const ASSETS = [
   BASE + "app.js",
   BASE + "manifest.json",
   BASE + "logo.jpg",
-  BASE + "bg-landscape.jpg",
-  BASE + "icons/icon-192.png",
-  BASE + "icons/icon-512.png"
+  BASE + "bg-landscape.jpg"
 ];
 
 // Install event
